@@ -1,0 +1,21 @@
+[package]
+name = "isitblockedinrussia_bot"
+version = "0.1.0"
+authors = ["theonekeyg <theonekeyg@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures = "0.3"
+regex = "1"
+encoding = "0.2.33"
+reqwest = { version = "0.11", features = ["json"] }
+dotenv = "0.15.0"
+tokio = { version = "1", features = ["full"] }
+tokio-postgres = "0.7"
+# Currently any official release of telegram-bot crate don't support tokio runtime
+# greater than 0.2, clone below expected to be from this PR, which implemented support
+# for tokio 1.*: https://github.com/telegram-rs/telegram-bot/pull/228
+# TODO: make build script to automatically download appropriate telegram-bot version
+telegram-bot = { path="./telegram-bot/lib" }
