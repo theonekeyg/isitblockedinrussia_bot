@@ -26,7 +26,7 @@ impl<'a> BlockedBot<'a> {
 
     pub async fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut stream = UpdatesStream::new(&self.api);
-        let ipv4_regex = Regex::new(r"^[1-9][0-9]{0,2}(.[1-9][0-9]{0,2}|.0){3}$")?;
+        let ipv4_regex = Regex::new(r"^[1-9][0-9]{0,2}(\.[1-9][0-9]{0,2}|\.0){3}$")?;
         let url_regex = Regex::new(r"^(https?://)?([a-zA-Z0-9]+.)[a-z]{2,}$")?;
 
         while let Some(update) = stream.next().await {
@@ -40,10 +40,10 @@ impl<'a> BlockedBot<'a> {
                             if let Some(func) = self.operations.get(data) {
                                 func(&self.api, message.chat.to_chat_ref());
                             } else if url_regex.is_match(data) {
-                                println!("{} is url!", data);
+                                println!("`{}` is url!", data);
                                 /* TODO: Get ip from DNS server */
                             } else if ipv4_regex.is_match(data) {
-                                println!("{} is ipv4!", data);
+                                println!("`{}` is ipv4!", data);
                                 let rows = self.db.get_blocked(data.to_string()).await?;
                                 if rows.is_empty() {
                                     self.api.spawn(SendMessage::new(
@@ -79,7 +79,6 @@ mod tests {
     use crate::{BlockedBot, BlockedDB};
     use std::collections::HashMap;
     use telegram_bot::types::requests::GetMe;
-    use telegram_bot::types::User;
 
     #[tokio::test]
     async fn test_bot_getme() {

@@ -164,7 +164,6 @@ impl BlockedDB {
             }
         }
 
-
         Ok(())
     }
 }
