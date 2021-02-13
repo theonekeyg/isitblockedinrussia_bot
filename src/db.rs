@@ -179,3 +179,21 @@ fn params_from_iter(dest: &mut String, it: &Vec<Vec<String>>) {
     }
     dest.pop();
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use std::env;
+    use crate::BlockedDB;
+
+    #[tokio::test]
+    async fn test_db_connect() {
+        dotenv::dotenv().expect("Unable to parse .env file");
+        let args = env::vars().collect::<HashMap<String, String>>();
+        let db = BlockedDB::connect(
+            format!("host={} user={} password={} dbname=isitblockedinrussia",
+            args["DB_HOST"], args["DB_USER"], args["DB_PASSWORD"]).as_ref()
+        ).await.unwrap();
+        assert_eq!(db.client.is_closed(), false);
+    }
+}

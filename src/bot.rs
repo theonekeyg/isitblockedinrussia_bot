@@ -73,3 +73,27 @@ impl<'a> BlockedBot<'a> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{BlockedBot, BlockedDB};
+    use std::collections::HashMap;
+    use telegram_bot::types::requests::GetMe;
+    use telegram_bot::types::User;
+
+    #[tokio::test]
+    async fn test_bot_getme() {
+        dotenv::dotenv().expect("Unable to parse .env file");
+        let args = std::env::vars().collect::<HashMap<String, String>>();
+        let token = &args["TELEGRAM_TOKEN"];
+
+        let db = BlockedDB::connect(
+            format!("host={} user={} password={} dbname=isitblockedinrussia",
+            args["DB_HOST"], args["DB_USER"], args["DB_PASSWORD"]).as_ref()
+        ).await.expect("Error creating db instance");
+        let bot = BlockedBot::new(token, HashMap::new(), db)
+            .await.expect("Error creating a bot instance");
+        let res = bot.api.send(GetMe).await;
+        assert!(res.is_ok(), format!("Error reaching telegram bot server: {:?}", res));
+    }
+}
