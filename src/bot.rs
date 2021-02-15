@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use telegram_bot::{Api, UpdatesStream};
 use telegram_bot::types::{ChatRef, UpdateKind, MessageKind, ToChatRef};
 use telegram_bot::types::requests::{SendMessage};
+use tokio_postgres::row::Row;
 use regex::Regex;
 use futures::StreamExt;
 
@@ -24,6 +25,23 @@ impl<'a> BlockedBot<'a> {
         Ok(BlockedBot { api: api, operations: operations, db: db})
     }
 
+    fn construct_response(&self, rows: Vec<Row>) -> String {
+        let mut s = String::with_capacity(rows.len() * 50);
+        for row in rows.iter() {
+            let ip:            String = row.get("ip");
+            // let domain:        String = row.get("domain");
+            // let url:           String = row.get("url");
+            let decision_org:  String = row.get("decision_org");
+            // let decision_num:  String = row.get("decision_num");
+            let decision_date: String = row.get("decision_date");
+            s += format!("ip {} is blocked on {} by {}\n",
+                         ip, decision_date, decision_org
+            ).as_str();
+        }
+        s.pop();
+        s
+    }
+
     pub async fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut stream = UpdatesStream::new(&self.api);
         let ipv4_regex = Regex::new(r"^[1-9][0-9]{0,2}(\.[1-9][0-9]{0,2}|\.0){3}$")?;
@@ -39,20 +57,17 @@ impl<'a> BlockedBot<'a> {
                             let data = data.as_ref();
                             if let Some(func) = self.operations.get(data) {
                                 func(&self.api, message.chat.to_chat_ref());
-                            } else if url_regex.is_match(data) {
-                                println!("`{}` is url!", data);
-                                /* TODO: Get ip from DNS server */
-                            } else if ipv4_regex.is_match(data) {
-                                println!("`{}` is ipv4!", data);
+                            } else if ipv4_regex.is_match(data) || url_regex.is_match(data) {
+                                println!("`{}` is ipv4 or url!", data);
                                 let rows = self.db.get_blocked(data.to_string()).await?;
                                 if rows.is_empty() {
                                     self.api.spawn(SendMessage::new(
-                                            message.chat, format!("ip {} is not blocked yet", data)
+                                            message.chat, format!("{} is not blocked yet", data)
                                         )
                                     );
                                 } else {
                                     self.api.spawn(SendMessage::new(
-                                            message.chat, format!("ip {} is blocked", data)
+                                            message.chat, self.construct_response(rows)
                                         )
                                     );
                                 }

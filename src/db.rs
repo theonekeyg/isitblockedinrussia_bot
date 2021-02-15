@@ -2,6 +2,7 @@ use tokio_postgres::{Client, Error, NoTls};
 use tokio_postgres::config::Config;
 use tokio_postgres::error::SqlState;
 use tokio_postgres::row::Row;
+use encoding_rs::WINDOWS_1251;
 
 #[derive(Debug)]
 pub struct BlockedDB {
@@ -98,7 +99,7 @@ impl BlockedDB {
     pub async fn get_blocked(&self, s: String) -> Result<Vec<Row>, Error> {
         let rv = self.client.query(
             "SELECT * FROM blocked WHERE ip = $1::TEXT
-             OR domain = $1::TEXT",
+             OR domain ~* $1::TEXT",
             &[&s])
             .await?;
         Ok(rv)
@@ -109,10 +110,13 @@ impl BlockedDB {
         // Extremist sources: https://minjust.gov.ru/uploaded/files/exportfsm.csv
         // Blocked ips: http://raw.githubusercontent.com/zapret-info/z-i/master/dump.csv
         let blocked_uri = "http://raw.githubusercontent.com/zapret-info/z-i/master/dump-00.csv";
-        let blocked = reqwest::get(blocked_uri)
+        let mut decoder_1251 = WINDOWS_1251.new_decoder();
+        let bytes_response = reqwest::get(blocked_uri)
             .await?
-            .text()
+            .bytes()
             .await?;
+        let mut blocked = String::with_capacity(bytes_response.len() * 2);
+        let (_, _, _) = decoder_1251.decode_to_string(&bytes_response, &mut blocked, true);
 
         self.client.execute("TRUNCATE TABLE blocked;", &[]).await?;
         let mut lines = blocked.split('\n');
@@ -129,11 +133,13 @@ impl BlockedDB {
                 continue;
             }
 
-            let mut ips = cols.next().unwrap().split(" | ");
-            let domain = cols.next().unwrap().to_owned();
-            let url = cols.next().unwrap().to_owned();
-            let decision_org = cols.next().unwrap().to_owned();
-            let decision_num = cols.next().unwrap().to_owned();
+            let mut cols = items.iter();
+
+            let mut ips       = cols.next().unwrap().split(" | ");
+            let domain        = cols.next().unwrap().to_owned();
+            let url           = cols.next().unwrap().to_owned();
+            let decision_org  = cols.next().unwrap().to_owned();
+            let decision_num  = cols.next().unwrap().to_owned();
             let decision_date = cols.next().unwrap().to_owned();
 
             while let Some(ip) = ips.next() {
@@ -164,6 +170,7 @@ impl BlockedDB {
             }
         }
 
+        println!("Successfully updated the database");
         Ok(())
     }
 }
