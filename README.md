@@ -17,3 +17,8 @@ data.
 
 To run bot with E2E-testing, set `TELEGRAM_API_URL` environment variable to your
 telegram bot server.
+
+# Credits
+Project was largely inspired by 
+[this repo](https://github.com/deNULL/isitblockedinrussia.com),
+so go check them out.
